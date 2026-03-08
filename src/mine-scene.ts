@@ -41,71 +41,97 @@ function generateMineLayout(): MineTile[][] {
     }
   }
 
-  // Create a rectangular room in the center
-  const roomW = 9 + Math.floor(Math.random() * 6) // 9-14
-  const roomH = 7 + Math.floor(Math.random() * 4) // 7-10
-  const roomX = Math.floor((MAP_WIDTH - roomW) / 2)
-  const roomY = Math.floor((MAP_HEIGHT - roomH) / 2)
+  // Irregular cavern using flood-fill expansion from center
+  const centerRow = Math.floor(MAP_HEIGHT / 2)
+  const centerCol = Math.floor(MAP_WIDTH / 2)
+  const radius = 5
+  const floorTiles: Set<string> = new Set()
 
-  // Walls (outer ring of the room)
-  for (let row = roomY; row < roomY + roomH; row++) {
-    for (let col = roomX; col < roomX + roomW; col++) {
-      grid[row][col] = MineTile.WALL
+  // Seed: mark center as floor
+  floorTiles.add(`${centerRow},${centerCol}`)
+
+  // Expand outward: iterate all cells in radius, accept with probability
+  // that drops off with distance. Run multiple passes for organic shape.
+  const candidates: { r: number; c: number; dist: number }[] = []
+  for (let r = centerRow - radius - 1; r <= centerRow + radius + 1; r++) {
+    for (let c = centerCol - radius - 1; c <= centerCol + radius + 1; c++) {
+      if (r < 1 || r >= MAP_HEIGHT - 1 || c < 1 || c >= MAP_WIDTH - 1) continue
+      const dist = Math.sqrt((r - centerRow) ** 2 + (c - centerCol) ** 2)
+      if (dist <= radius + 1) {
+        candidates.push({ r, c, dist })
+      }
     }
   }
 
-  // Floor (inner area)
-  for (let row = roomY + 1; row < roomY + roomH - 1; row++) {
-    for (let col = roomX + 1; col < roomX + roomW - 1; col++) {
-      grid[row][col] = MineTile.FLOOR
+  // Sort by distance so inner tiles are processed first
+  candidates.sort((a, b) => a.dist - b.dist)
+
+  // Pass 1: carve floor tiles with distance-based probability
+  for (const { r, c, dist } of candidates) {
+    const normalized = dist / radius // 0 at center, 1 at edge
+    // Inner 40%: always floor. Then probability drops to 0 at edge.
+    const chance = normalized < 0.4 ? 1.0 : 1.0 - ((normalized - 0.4) / 0.6) * 0.85
+    if (Math.random() < chance) {
+      floorTiles.add(`${r},${c}`)
     }
   }
 
-  // Add a couple of gallery corridors branching from the room
-  const corridors = 2 + Math.floor(Math.random() * 2) // 2-3 corridors
-  for (let c = 0; c < corridors; c++) {
-    const horizontal = Math.random() > 0.5
-    if (horizontal) {
-      const corridorRow = roomY + 1 + Math.floor(Math.random() * (roomH - 2))
-      const goRight = Math.random() > 0.5
-      const length = 4 + Math.floor(Math.random() * 6)
+  // Pass 2: remove isolated floor tiles (must have at least 2 floor neighbors)
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+  const toRemove: string[] = []
+  for (const key of floorTiles) {
+    const [r, c] = key.split(',').map(Number)
+    let neighbors = 0
+    for (const [dr, dc] of dirs) {
+      if (floorTiles.has(`${r + dr},${c + dc}`)) neighbors++
+    }
+    if (neighbors < 2) toRemove.push(key)
+  }
+  for (const key of toRemove) floorTiles.delete(key)
 
-      if (goRight) {
-        const startCol = roomX + roomW
-        for (let col = startCol; col < Math.min(startCol + length, MAP_WIDTH - 1); col++) {
-          grid[corridorRow - 1][col] = MineTile.WALL
-          grid[corridorRow][col] = MineTile.FLOOR
-          grid[corridorRow + 1][col] = MineTile.WALL
-        }
-      } else {
-        const startCol = roomX - 1
-        for (let col = startCol; col > Math.max(startCol - length, 0); col--) {
-          grid[corridorRow - 1][col] = MineTile.WALL
-          grid[corridorRow][col] = MineTile.FLOOR
-          grid[corridorRow + 1][col] = MineTile.WALL
-        }
-      }
-    } else {
-      const corridorCol = roomX + 1 + Math.floor(Math.random() * (roomW - 2))
-      const goDown = Math.random() > 0.5
-      const length = 4 + Math.floor(Math.random() * 6)
+  // Apply floor tiles to grid
+  for (const key of floorTiles) {
+    const [r, c] = key.split(',').map(Number)
+    grid[r][c] = MineTile.FLOOR
+  }
 
-      if (goDown) {
-        const startRow = roomY + roomH
-        for (let row = startRow; row < Math.min(startRow + length, MAP_HEIGHT - 1); row++) {
-          grid[row][corridorCol - 1] = MineTile.WALL
-          grid[row][corridorCol] = MineTile.FLOOR
-          grid[row][corridorCol + 1] = MineTile.WALL
-        }
-      } else {
-        const startRow = roomY - 1
-        for (let row = startRow; row > Math.max(startRow - length, 0); row--) {
-          grid[row][corridorCol - 1] = MineTile.WALL
-          grid[row][corridorCol] = MineTile.FLOOR
-          grid[row][corridorCol + 1] = MineTile.WALL
+  // Wall pass: any BLACK tile adjacent to FLOOR becomes WALL
+  const wallTiles: { r: number; c: number }[] = []
+  for (let r = 0; r < MAP_HEIGHT; r++) {
+    for (let c = 0; c < MAP_WIDTH; c++) {
+      if (grid[r][c] !== MineTile.BLACK) continue
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr
+        const nc = c + dc
+        if (nr >= 0 && nr < MAP_HEIGHT && nc >= 0 && nc < MAP_WIDTH && grid[nr][nc] === MineTile.FLOOR) {
+          wallTiles.push({ r, c })
+          break
         }
       }
     }
+  }
+  for (const { r, c } of wallTiles) {
+    grid[r][c] = MineTile.WALL
+  }
+
+  // Also add diagonal walls for a thicker border feel
+  const diagDirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+  const diagWalls: { r: number; c: number }[] = []
+  for (let r = 0; r < MAP_HEIGHT; r++) {
+    for (let c = 0; c < MAP_WIDTH; c++) {
+      if (grid[r][c] !== MineTile.BLACK) continue
+      for (const [dr, dc] of diagDirs) {
+        const nr = r + dr
+        const nc = c + dc
+        if (nr >= 0 && nr < MAP_HEIGHT && nc >= 0 && nc < MAP_WIDTH && grid[nr][nc] === MineTile.FLOOR) {
+          diagWalls.push({ r, c })
+          break
+        }
+      }
+    }
+  }
+  for (const { r, c } of diagWalls) {
+    grid[r][c] = MineTile.WALL
   }
 
   return grid

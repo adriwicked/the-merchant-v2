@@ -171,7 +171,7 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({
       targets: progress,
       threshold: 0,
-      duration: 1000,
+      duration: 500,
       ease: 'Linear',
       onUpdate: drawFrame,
       onComplete: () => {

@@ -2,6 +2,6 @@
  * Simple global inventory that persists across scene transitions.
  */
 export const inventory = {
-  bombs: 3,
+  bombs: 20,
   goldNuggets: 0,
 }
