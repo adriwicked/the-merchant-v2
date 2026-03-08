@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
-import { generateNoiseGrid, applyRadialFalloff, classifyTerrain, Terrain, TERRAIN_COLORS, DEFAULT_PARAMS } from './map'
-import { generateLocations, LocationType, GameLocation } from './locations'
+import { LocationType, GameLocation } from './locations'
 import { MineScene } from './mine-scene'
+import { getWorldState } from './game-state'
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, CELL_SIZE, CELL_SEPARATION, BORDER_WIDTH,
   MAP_WIDTH, MAP_HEIGHT, GRID_PIXEL_WIDTH, GRID_PIXEL_HEIGHT,
@@ -38,40 +38,38 @@ class GameScene extends Phaser.Scene {
     staticGraphics.fillStyle(COLORS.BOARD.BACKGROUND, 1)
     staticGraphics.fillRect(OFFSET_X, OFFSET_Y, GRID_PIXEL_WIDTH, GRID_PIXEL_HEIGHT)
 
-    // Terrain layer (land only)
-    const terrainGraphics = this.add.graphics()
-    const rawNoiseGrid = generateNoiseGrid(MAP_WIDTH, MAP_HEIGHT, DEFAULT_PARAMS)
-    const noiseGrid = applyRadialFalloff(rawNoiseGrid, DEFAULT_PARAMS.radialFalloff)
-    const map = classifyTerrain(noiseGrid, DEFAULT_PARAMS)
+    const world = getWorldState()
 
-    // Water cells: store base color for animation
-    const waterBaseColors: { row: number; col: number; color: number }[] = []
+    // Terrain layer (land only) — uses pre-computed colors
+    const terrainGraphics = this.add.graphics()
     const waterGraphics = this.add.graphics()
 
     for (let row = 0; row < MAP_HEIGHT; row++) {
       for (let col = 0; col < MAP_WIDTH; col++) {
         const { x, y } = cellPosition(row, col)
-        const terrain = map[row][col]
-        const baseColor = tweakColor(TERRAIN_COLORS[terrain])
+        const landColor = world.landColors[row][col]
 
-        if (terrain === Terrain.DEEP_WATER || terrain === Terrain.MEDIUM_WATER || terrain === Terrain.SEA_SHORE || terrain === Terrain.FOAM) {
-          waterBaseColors.push({ row, col, color: baseColor })
-          waterGraphics.fillStyle(baseColor, 1)
-          waterGraphics.fillRect(x, y, CELL_SIZE, CELL_SIZE)
-        } else {
-          terrainGraphics.fillStyle(baseColor, 1)
+        if (landColor !== null) {
+          terrainGraphics.fillStyle(landColor, 1)
           terrainGraphics.fillRect(x, y, CELL_SIZE, CELL_SIZE)
         }
       }
     }
 
-    // Animate water: re-tweak from base color every second
+    // Draw water cells from cached base colors
+    for (const cell of world.waterCells) {
+      const { x, y } = cellPosition(cell.row, cell.col)
+      waterGraphics.fillStyle(cell.color, 1)
+      waterGraphics.fillRect(x, y, CELL_SIZE, CELL_SIZE)
+    }
+
+    // Animate water: re-tweak from base color every 2 seconds
     this.time.addEvent({
       delay: 2000,
       loop: true,
       callback: () => {
         waterGraphics.clear()
-        for (const cell of waterBaseColors) {
+        for (const cell of world.waterCells) {
           const { x, y } = cellPosition(cell.row, cell.col)
           waterGraphics.fillStyle(tweakColor(cell.color), 1)
           waterGraphics.fillRect(x, y, CELL_SIZE, CELL_SIZE)
@@ -80,10 +78,9 @@ class GameScene extends Phaser.Scene {
     })
 
     // Locations layer
-    const locations = generateLocations(map)
     const DESAT_AMOUNT = 0.45
 
-    for (const loc of locations) {
+    for (const loc of world.locations) {
       const { x, y } = cellPosition(loc.row, loc.col)
       const baseColor = loc.type === LocationType.CITY ? COLORS.LOCATIONS.CITY : COLORS.LOCATIONS.MINE
       const normalColor = desaturate(baseColor, DESAT_AMOUNT)
