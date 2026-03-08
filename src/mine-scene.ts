@@ -4,7 +4,7 @@ import { getMineState, MineState } from './game-state'
 import {
   CANVAS_WIDTH, CELL_SIZE, CELL_SEPARATION, BORDER_WIDTH,
   MAP_WIDTH, MAP_HEIGHT, GRID_PIXEL_WIDTH, GRID_PIXEL_HEIGHT,
-  OFFSET_X, OFFSET_Y, COLORS, tweakColor, cellPosition,
+  OFFSET_X, OFFSET_Y, COLORS, tweakColor, brightenColor, cellPosition,
 } from './config'
 import { inventory } from './inventory'
 
@@ -12,12 +12,14 @@ export enum MineTile {
   BLACK,
   WALL,
   FLOOR,
+  TORCH,
 }
 
-const MINE_COLORS = {
+const MINE_COLORS: Record<number, number> = {
   [MineTile.BLACK]: 0x2a2a2a,
-  [MineTile.WALL]: 0x6b4c2a,
-  [MineTile.FLOOR]: 0x8c7050,
+  [MineTile.WALL]: 0x382a1a,
+  [MineTile.FLOOR]: 0x3d332a,
+  [MineTile.TORCH]: 0xfff4e0,
 }
 
 const PLAYER_COLOR = 0x3366cc
@@ -30,6 +32,11 @@ const BOMB_RADIUS_MAX = 5
 const GOLD_NUGGET_COLOR = 0xffd700
 const GOLD_NUGGET_SIZE = 4
 const GOLD_SPAWN_CHANCE = 0.15
+
+// Torch system
+const TORCH_RADIUS = 6        // tiles of light reach
+const TORCH_BRIGHTNESS = 1.5  // max brightness multiplier at torch
+const TORCH_WARMTH = 0.6      // warm tint factor at torch
 
 function generateMineLayout(): MineTile[][] {
   const grid: MineTile[][] = []
@@ -44,7 +51,7 @@ function generateMineLayout(): MineTile[][] {
   // Irregular cavern using flood-fill expansion from center
   const centerRow = Math.floor(MAP_HEIGHT / 2)
   const centerCol = Math.floor(MAP_WIDTH / 2)
-  const radius = 5
+  const radius = 10
   const floorTiles: Set<string> = new Set()
 
   // Seed: mark center as floor
@@ -134,6 +141,44 @@ function generateMineLayout(): MineTile[][] {
     grid[r][c] = MineTile.WALL
   }
 
+  // Torch placement: eligible WALL tiles that are adjacent (cardinal) to at least one FLOOR tile
+  const eligibleTorchTiles: { r: number; c: number }[] = []
+  for (let r = 0; r < MAP_HEIGHT; r++) {
+    for (let c = 0; c < MAP_WIDTH; c++) {
+      if (grid[r][c] !== MineTile.WALL) continue
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr
+        const nc = c + dc
+        if (nr >= 0 && nr < MAP_HEIGHT && nc >= 0 && nc < MAP_WIDTH && grid[nr][nc] === MineTile.FLOOR) {
+          eligibleTorchTiles.push({ r, c })
+          break
+        }
+      }
+    }
+  }
+
+  // Convert some eligible walls to torches: pick exactly 2-4 torches
+  const torchPositions: { r: number; c: number }[] = []
+  const torchCount = 2 + Math.floor(Math.random() * 3) // 2, 3, or 4
+  // Shuffle eligible tiles for randomness
+  for (let i = eligibleTorchTiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [eligibleTorchTiles[i], eligibleTorchTiles[j]] = [eligibleTorchTiles[j], eligibleTorchTiles[i]]
+  }
+
+  for (const { r, c } of eligibleTorchTiles) {
+    if (torchPositions.length >= torchCount) break
+
+    // Check min distance to existing torches (Manhattan distance >= 8)
+    const tooClose = torchPositions.some(
+      (t) => Math.abs(t.r - r) + Math.abs(t.c - c) < 8,
+    )
+    if (tooClose) continue
+
+    grid[r][c] = MineTile.TORCH
+    torchPositions.push({ r, c })
+  }
+
   return grid
 }
 
@@ -170,8 +215,10 @@ export class MineScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private lastMoveTime = 0
   private tileGraphics!: Phaser.GameObjects.Graphics
+  private torchGraphics!: Phaser.GameObjects.Graphics
   private inventoryText!: Phaser.GameObjects.Text
   private nuggets: Map<string, Phaser.GameObjects.Rectangle> = new Map()
+  private torchLitCells: { row: number; col: number; baseColor: number }[] = []
 
   constructor() {
     super('MineScene')
@@ -217,7 +264,18 @@ export class MineScene extends Phaser.Scene {
 
     // Draw mine tiles
     this.tileGraphics = this.add.graphics()
+    this.torchGraphics = this.add.graphics()
+    this.computeTorchLitCells()
     this.drawAllTiles()
+
+    // Torch flicker animation: re-tweak torch-lit floor cells every 2 seconds
+    this.time.addEvent({
+      delay: 2000,
+      loop: true,
+      callback: () => {
+        this.drawTorchLitCells()
+      },
+    })
 
     // Recreate nugget visuals from persistent state
     for (const key of this.mineState.nuggetPositions) {
@@ -335,7 +393,8 @@ export class MineScene extends Phaser.Scene {
 
     for (let r = 0; r < MAP_HEIGHT; r++) {
       for (let c = 0; c < MAP_WIDTH; c++) {
-        if (this.mineGrid[r][c] !== MineTile.BLACK && this.mineGrid[r][c] !== MineTile.WALL) continue
+        const tile = this.mineGrid[r][c]
+        if (tile !== MineTile.BLACK && tile !== MineTile.WALL && tile !== MineTile.TORCH) continue
 
         const dist = Math.sqrt((r - row) ** 2 + (c - col) ** 2)
         if (dist > radius) continue
@@ -380,7 +439,13 @@ export class MineScene extends Phaser.Scene {
       this.tileColors[r][c] = tweakColor(MINE_COLORS[MineTile.WALL])
     }
 
+    // Recalculate torch lighting for all FLOOR tiles affected by the explosion.
+    // Torches may have been destroyed and new floor tiles created.
+    this.recalcTorchLighting()
+
     this.drawAllTiles()
+    // Camera shake
+    this.cameras.main.shake(150, 0.005)
     // Bring nuggets and player on top of redrawn tiles
     for (const rect of this.nuggets.values()) {
       this.children.bringToTop(rect)
@@ -426,8 +491,9 @@ export class MineScene extends Phaser.Scene {
     this.updateInventoryText()
   }
 
-  /** Pre-compute a tweaked color for every tile in the grid. */
+  /** Pre-compute a tweaked color for every tile in the grid, including torch lighting. */
   private computeTileColors(grid: MineTile[][]): number[][] {
+    // First pass: base tweaked colors
     const colors: number[][] = []
     for (let row = 0; row < MAP_HEIGHT; row++) {
       colors[row] = []
@@ -438,18 +504,155 @@ export class MineScene extends Phaser.Scene {
           : tweakColor(MINE_COLORS[tile])
       }
     }
+
+    // Second pass: apply torch lighting to FLOOR tiles
+    // Collect all torch positions
+    const torches: { r: number; c: number }[] = []
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (grid[r][c] === MineTile.TORCH) torches.push({ r, c })
+      }
+    }
+
+    // For each floor tile, find the strongest torch influence
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (grid[r][c] !== MineTile.FLOOR) continue
+
+        let maxFactor = 1.0
+        let maxWarmth = 0
+
+        for (const torch of torches) {
+          const dist = Math.sqrt((r - torch.r) ** 2 + (c - torch.c) ** 2)
+          if (dist > TORCH_RADIUS) continue
+
+          // Linear falloff: full brightness at distance 0, factor 1.0 at TORCH_RADIUS
+          const t = 1 - dist / TORCH_RADIUS
+          const factor = 1.0 + (TORCH_BRIGHTNESS - 1.0) * t
+          const warmth = TORCH_WARMTH * t
+
+          if (factor > maxFactor) {
+            maxFactor = factor
+            maxWarmth = warmth
+          }
+        }
+
+        if (maxFactor > 1.0) {
+          colors[r][c] = brightenColor(colors[r][c], maxFactor, maxWarmth)
+        }
+      }
+    }
+
     return colors
   }
 
   private drawAllTiles() {
     this.tileGraphics.clear()
+    // Build a set of torch-lit cell keys for quick lookup
+    const litSet = new Set(this.torchLitCells.map((c) => `${c.row},${c.col}`))
+
     for (let row = 0; row < MAP_HEIGHT; row++) {
       for (let col = 0; col < MAP_WIDTH; col++) {
+        // Torch-lit floor tiles are drawn on the torchGraphics layer
+        if (litSet.has(`${row},${col}`)) continue
         const { x, y } = cellPosition(row, col)
         this.tileGraphics.fillStyle(this.tileColors[row][col], 1)
         this.tileGraphics.fillRect(x, y, CELL_SIZE, CELL_SIZE)
       }
     }
+
+    // Draw torch-lit cells on their own layer (for flicker animation)
+    this.drawTorchLitCells()
+  }
+
+  /** Compute which FLOOR cells are lit by at least one torch. */
+  private computeTorchLitCells() {
+    this.torchLitCells = []
+
+    // Collect all torch positions
+    const torches: { r: number; c: number }[] = []
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (this.mineGrid[r][c] === MineTile.TORCH) torches.push({ r, c })
+      }
+    }
+
+    if (torches.length === 0) return
+
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (this.mineGrid[r][c] !== MineTile.FLOOR) continue
+
+        for (const torch of torches) {
+          const dist = Math.sqrt((r - torch.r) ** 2 + (c - torch.c) ** 2)
+          if (dist <= TORCH_RADIUS) {
+            // This cell is lit — store its base color from tileColors (already brightened)
+            this.torchLitCells.push({ row: r, col: c, baseColor: this.tileColors[r][c] })
+            break // only need to know it's lit, not by how many torches
+          }
+        }
+      }
+    }
+  }
+
+  /** Draw (or re-draw with flicker) torch-lit floor cells on the torchGraphics layer. */
+  private drawTorchLitCells() {
+    this.torchGraphics.clear()
+    for (const { row, col, baseColor } of this.torchLitCells) {
+      const { x, y } = cellPosition(row, col)
+      // Re-tweak from base brightened color for flicker effect
+      const flickered = tweakColor(baseColor)
+      this.torchGraphics.fillStyle(flickered, 1)
+      this.torchGraphics.fillRect(x, y, CELL_SIZE, CELL_SIZE)
+    }
+  }
+
+  /**
+   * Recalculate torch lighting after explosion: reapply brightness to FLOOR tiles
+   * near surviving torches, recompute torchLitCells.
+   */
+  private recalcTorchLighting() {
+    // Collect surviving torch positions
+    const torches: { r: number; c: number }[] = []
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (this.mineGrid[r][c] === MineTile.TORCH) torches.push({ r, c })
+      }
+    }
+
+    // Recalculate lighting for all FLOOR tiles
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (this.mineGrid[r][c] !== MineTile.FLOOR) continue
+
+        // Start from a base tweaked floor color (strip old torch lighting)
+        const baseFloor = tweakColor(MINE_COLORS[MineTile.FLOOR])
+
+        let maxFactor = 1.0
+        let maxWarmth = 0
+
+        for (const torch of torches) {
+          const dist = Math.sqrt((r - torch.r) ** 2 + (c - torch.c) ** 2)
+          if (dist > TORCH_RADIUS) continue
+
+          const t = 1 - dist / TORCH_RADIUS
+          const factor = 1.0 + (TORCH_BRIGHTNESS - 1.0) * t
+          const warmth = TORCH_WARMTH * t
+
+          if (factor > maxFactor) {
+            maxFactor = factor
+            maxWarmth = warmth
+          }
+        }
+
+        this.tileColors[r][c] = maxFactor > 1.0
+          ? brightenColor(baseFloor, maxFactor, maxWarmth)
+          : baseFloor
+      }
+    }
+
+    // Recompute which cells are torch-lit
+    this.computeTorchLitCells()
   }
 
   private updateInventoryText() {
