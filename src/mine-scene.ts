@@ -359,6 +359,27 @@ export class MineScene extends Phaser.Scene {
       }
     }
 
+    // Convert BLACK tiles adjacent to FLOOR into WALL (cardinal + diagonal)
+    const allDirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]
+    const newWalls: { r: number; c: number }[] = []
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (this.mineGrid[r][c] !== MineTile.BLACK) continue
+        for (const [dr, dc] of allDirs) {
+          const nr = r + dr
+          const nc = c + dc
+          if (nr >= 0 && nr < MAP_HEIGHT && nc >= 0 && nc < MAP_WIDTH && this.mineGrid[nr][nc] === MineTile.FLOOR) {
+            newWalls.push({ r, c })
+            break
+          }
+        }
+      }
+    }
+    for (const { r, c } of newWalls) {
+      this.mineGrid[r][c] = MineTile.WALL
+      this.tileColors[r][c] = tweakColor(MINE_COLORS[MineTile.WALL])
+    }
+
     this.drawAllTiles()
     // Bring nuggets and player on top of redrawn tiles
     for (const rect of this.nuggets.values()) {

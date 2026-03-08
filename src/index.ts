@@ -16,6 +16,8 @@ interface LocationVisual {
 }
 
 class GameScene extends Phaser.Scene {
+  private locationVisuals: LocationVisual[] = []
+
   constructor() {
     super('GameScene')
   }
@@ -79,6 +81,7 @@ class GameScene extends Phaser.Scene {
 
     // Locations layer
     const DESAT_AMOUNT = 0.45
+    this.locationVisuals = []
 
     for (const loc of world.locations) {
       const { x, y } = cellPosition(loc.row, loc.col)
@@ -110,6 +113,7 @@ class GameScene extends Phaser.Scene {
       ).setInteractive({ useHandCursor: true })
 
       const visual: LocationVisual = { loc, borderGraphics: borderGfx, innerRect, hitZone }
+      this.locationVisuals.push(visual)
 
       hitZone.on('pointerover', () => {
         this.setLocationHover(visual, hoverColor)
@@ -127,6 +131,13 @@ class GameScene extends Phaser.Scene {
   }
 
   private irisOut(loc: GameLocation) {
+    // Hide all location visuals so they don't bleed through the overlay
+    for (const v of this.locationVisuals) {
+      v.borderGraphics.setVisible(false)
+      v.innerRect.setVisible(false)
+      v.hitZone.disableInteractive()
+    }
+
     // Pre-compute distances from every cell to the mine (Euclidean in tile space)
     const distances: number[][] = []
     let maxDist = 0
@@ -152,6 +163,10 @@ class GameScene extends Phaser.Scene {
     )
     const progress = { threshold: startThreshold }
 
+    // Each darkened cell covers its area plus surrounding separation gaps
+    const pad = CELL_SEPARATION
+    const darkSize = CELL_SIZE + pad * 2
+
     const drawFrame = () => {
       overlay.clear()
       overlay.fillStyle(0x2a2a2a, 1)
@@ -160,7 +175,7 @@ class GameScene extends Phaser.Scene {
         for (let col = 0; col < MAP_WIDTH; col++) {
           if (distances[row][col] >= progress.threshold) {
             const { x, y } = cellPosition(row, col)
-            overlay.fillRect(x, y, CELL_SIZE, CELL_SIZE)
+            overlay.fillRect(x - pad, y - pad, darkSize, darkSize)
           }
         }
       }
