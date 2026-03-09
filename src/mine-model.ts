@@ -7,7 +7,6 @@ export enum MineTile {
   BLACK,
   WALL,
   FLOOR,
-  TORCH,
 }
 
 export const BOMB_RADIUS_MIN = 3
@@ -136,40 +135,6 @@ export function generateMineLayout(): Array<Array<MineTile>> {
   }
   for (const { r, c } of diagWalls) grid[r][c] = MineTile.WALL
 
-  // Torch placement
-  const eligibleTorchTiles: Array<{ r: number; c: number }> = []
-  for (let r = 0; r < MAP_HEIGHT; r++) {
-    for (let c = 0; c < MAP_WIDTH; c++) {
-      if (grid[r][c] !== MineTile.WALL) continue
-      for (const [dr, dc] of DIRS_CARDINAL) {
-        const nr = r + dr
-        const nc = c + dc
-        if (nr >= 0 && nr < MAP_HEIGHT && nc >= 0 && nc < MAP_WIDTH && grid[nr][nc] === MineTile.FLOOR) {
-          eligibleTorchTiles.push({ r, c })
-          break
-        }
-      }
-    }
-  }
-
-  const torchPositions: Array<{ r: number; c: number }> = []
-  const torchCount = 2 + Math.floor(Math.random() * 3)
-  // Shuffle
-  for (let i = eligibleTorchTiles.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [eligibleTorchTiles[i], eligibleTorchTiles[j]] = [eligibleTorchTiles[j], eligibleTorchTiles[i]]
-  }
-
-  for (const { r, c } of eligibleTorchTiles) {
-    if (torchPositions.length >= torchCount) break
-    const tooClose = torchPositions.some(
-      (t) => Math.abs(t.r - r) + Math.abs(t.c - c) < 8,
-    )
-    if (tooClose) continue
-    grid[r][c] = MineTile.TORCH
-    torchPositions.push({ r, c })
-  }
-
   return grid
 }
 
@@ -205,7 +170,7 @@ export interface ExplosionResult {
 }
 
 /**
- * Explode at (row, col): convert nearby BLACK/WALL/TORCH to FLOOR,
+ * Explode at (row, col): convert nearby BLACK/WALL to FLOOR,
  * regenerate walls around new floor, spawn nuggets.
  * Mutates grid in place. Returns what changed so the view can update visuals.
  */
@@ -216,7 +181,7 @@ export function explode(grid: Array<Array<MineTile>>, row: number, col: number):
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
       const tile = grid[r][c]
-      if (tile !== MineTile.BLACK && tile !== MineTile.WALL && tile !== MineTile.TORCH) continue
+      if (tile !== MineTile.BLACK && tile !== MineTile.WALL) continue
 
       const dist = Math.sqrt((r - row) ** 2 + (c - col) ** 2)
       if (dist > radius) continue

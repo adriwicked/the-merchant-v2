@@ -13,8 +13,8 @@ export const OFFSET_Y = (CANVAS_HEIGHT - GRID_PIXEL_HEIGHT) / 2
 
 export const COLORS = {
   BOARD: {
-    BACKGROUND: 0x3c3c3c,
-    BORDER: 0x777777,
+    BACKGROUND: 0x262626,
+    BORDER: 0x494f50,
   },
   LOCATIONS: {
     CITY: 0xdd3333,
@@ -47,20 +47,6 @@ export function desaturate(color: number, amount: number): number {
   const nb = Math.round(b + (gray - b) * amount)
 
   return (nr << 16) | (ng << 8) | nb
-}
-
-/** Multiply each RGB channel by a factor, with optional warm tint (shifts toward orange) */
-export function brightenColor(color: number, factor: number, warmth = 0): number {
-  let r = (color >> 16) & 0xff
-  let g = (color >> 8) & 0xff
-  let b = color & 0xff
-
-  r = Math.min(Math.round(r * factor + warmth * 40), 255)
-  g = Math.min(Math.round(g * factor + warmth * 15), 255)
-  b = Math.min(Math.round(b * factor - warmth * 10), 255)
-  b = Math.max(b, 0)
-
-  return (r << 16) | (g << 8) | b
 }
 
 /** Returns the pixel x,y for the top-left of a cell at (row, col) */

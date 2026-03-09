@@ -3,8 +3,8 @@ import {
   CELL_SIZE, CELL_SEPARATION, MAP_WIDTH, MAP_HEIGHT, cellPosition,
 } from './config'
 
-const IRIS_DURATION = 750
-const IRIS_OVERLAY_COLOR = 0x2a2a2a
+const IRIS_DURATION = 600
+const IRIS_OVERLAY_COLOR = 0x16191d
 const IRIS_OVERLAY_DEPTH = 1000
 
 type IrisDirection = 'in' | 'out'

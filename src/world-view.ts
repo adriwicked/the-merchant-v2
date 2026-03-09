@@ -8,7 +8,7 @@ import {
   OFFSET_X, OFFSET_Y, COLORS, tweakColor, cellPosition,
 } from './config'
 
-const WATER_ANIMATION_INTERVAL = 2000
+const WATER_ANIMATION_INTERVAL = 1000
 const INNER_LOCATION_SIZE = CELL_SIZE * 0.6
 
 interface LocationVisual {

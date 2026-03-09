@@ -4,13 +4,18 @@ import { MineScene } from './mine-scene'
 import { getWorldModel } from './world-model'
 import { WorldView } from './world-view'
 import { CANVAS_WIDTH, CANVAS_HEIGHT, COLORS } from './config'
-import { irisOut } from './transitions'
+import { irisIn, irisOut } from './transitions'
 
 class GameScene extends Phaser.Scene {
   private worldView!: WorldView
+  private fromMine: GameLocation | null = null
 
   constructor() {
     super('GameScene')
+  }
+
+  init(data?: { fromMine?: GameLocation }) {
+    this.fromMine = data?.fromMine ?? null
   }
 
   create() {
@@ -34,6 +39,11 @@ class GameScene extends Phaser.Scene {
           this.enterMine(visual.loc)
         })
       }
+    }
+
+    // Iris-in transition when returning from a mine
+    if (this.fromMine) {
+      irisIn(this, { originRow: this.fromMine.row, originCol: this.fromMine.col })
     }
   }
 

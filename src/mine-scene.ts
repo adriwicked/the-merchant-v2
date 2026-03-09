@@ -59,9 +59,6 @@ export class MineScene extends Phaser.Scene {
     this.playerCol = start.col
     this.view.movePlayer(this.playerRow, this.playerCol)
 
-    // Torch flicker animation
-    this.view.startTorchFlicker()
-
     // ── Input ────────────────────────────────────────────────────────
     this.cursors = this.input.keyboard!.createCursorKeys()
 
@@ -151,7 +148,7 @@ export class MineScene extends Phaser.Scene {
     irisOut(this, {
       originRow: centerRow,
       originCol: centerCol,
-      onComplete: () => this.scene.start('GameScene'),
+      onComplete: () => this.scene.start('GameScene', { fromMine: this.currentLocation }),
     })
   }
 }
