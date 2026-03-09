@@ -17,8 +17,8 @@ const MIN_DIST_CITY_MINE = 2
 const MAX_CITIES = 3
 const MAX_MINES = 2
 
-function getNeighbors(row: number, col: number, height: number, width: number): [number, number][] {
-  const neighbors: [number, number][] = []
+function getNeighbors(row: number, col: number, height: number, width: number): Array<[number, number]> {
+  const neighbors: Array<[number, number]> = []
   if (row > 0) neighbors.push([row - 1, col])
   if (row < height - 1) neighbors.push([row + 1, col])
   if (col > 0) neighbors.push([row, col - 1])
@@ -33,10 +33,10 @@ function tileDistance(r1: number, c1: number, r2: number, c2: number): number {
 /**
  * Finds all valid city positions: LOW_GRASS tiles adjacent to at least one BEACH_SAND tile.
  */
-function findCityCandidates(map: Terrain[][]): [number, number][] {
+function findCityCandidates(map: Array<Array<Terrain>>): Array<[number, number]> {
   const height = map.length
   const width = map[0].length
-  const candidates: [number, number][] = []
+  const candidates: Array<[number, number]> = []
 
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
@@ -55,10 +55,10 @@ function findCityCandidates(map: Terrain[][]): [number, number][] {
 /**
  * Finds all valid mine positions: DIRT or ROCK tiles.
  */
-function findMineCandidates(map: Terrain[][]): [number, number][] {
+function findMineCandidates(map: Array<Array<Terrain>>): Array<[number, number]> {
   const height = map.length
   const width = map[0].length
-  const candidates: [number, number][] = []
+  const candidates: Array<[number, number]> = []
 
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
@@ -71,7 +71,7 @@ function findMineCandidates(map: Terrain[][]): [number, number][] {
   return candidates
 }
 
-function pickRandom<T>(arr: T[]): T | undefined {
+function pickRandom<T>(arr: Array<T>): T | undefined {
   if (arr.length === 0) return undefined
   return arr[Math.floor(Math.random() * arr.length)]
 }
@@ -80,7 +80,7 @@ function respectsDistances(
   row: number,
   col: number,
   type: LocationType,
-  placed: GameLocation[],
+  placed: Array<GameLocation>,
 ): boolean {
   for (const loc of placed) {
     const dist = tileDistance(row, col, loc.row, loc.col)
@@ -100,8 +100,8 @@ function respectsDistances(
  * Generates locations (cities and mines) on valid terrain tiles,
  * respecting minimum distance constraints.
  */
-export function generateLocations(map: Terrain[][]): GameLocation[] {
-  const locations: GameLocation[] = []
+export function generateLocations(map: Array<Array<Terrain>>): Array<GameLocation> {
+  const locations: Array<GameLocation> = []
 
   const cityCandidates = findCityCandidates(map)
   for (let i = 0; i < MAX_CITIES; i++) {

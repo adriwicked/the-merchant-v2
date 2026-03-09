@@ -14,8 +14,8 @@ export const BOMB_RADIUS_MIN = 3
 export const BOMB_RADIUS_MAX = 5
 export const GOLD_SPAWN_CHANCE = 0.15
 
-const DIRS_CARDINAL = [[-1, 0], [1, 0], [0, -1], [0, 1]]
-const DIRS_ALL = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]
+const DIRS_CARDINAL: Array<Array<number>> = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+const DIRS_ALL: Array<Array<number>> = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]
 
 // ── Persistent state ─────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ const DIRS_ALL = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], 
  * Pure data — no colors or visuals.
  */
 export interface MineState {
-  grid: MineTile[][]
+  grid: Array<Array<MineTile>>
   nuggetPositions: Set<string>
 }
 
@@ -43,8 +43,8 @@ export function getMineState(loc: GameLocation): MineState {
 
 // ── Layout generation ────────────────────────────────────────────────
 
-export function generateMineLayout(): MineTile[][] {
-  const grid: MineTile[][] = []
+export function generateMineLayout(): Array<Array<MineTile>> {
+  const grid: Array<Array<MineTile>> = []
 
   for (let row = 0; row < MAP_HEIGHT; row++) {
     grid[row] = []
@@ -61,7 +61,7 @@ export function generateMineLayout(): MineTile[][] {
 
   floorTiles.add(`${centerRow},${centerCol}`)
 
-  const candidates: { r: number; c: number; dist: number }[] = []
+  const candidates: Array<{ r: number; c: number; dist: number }> = []
   for (let r = centerRow - radius - 1; r <= centerRow + radius + 1; r++) {
     for (let c = centerCol - radius - 1; c <= centerCol + radius + 1; c++) {
       if (r < 1 || r >= MAP_HEIGHT - 1 || c < 1 || c >= MAP_WIDTH - 1) continue
@@ -84,7 +84,7 @@ export function generateMineLayout(): MineTile[][] {
   }
 
   // Pass 2: remove isolated floor tiles (must have >= 2 floor neighbors)
-  const toRemove: string[] = []
+  const toRemove: Array<string> = []
   for (const key of floorTiles) {
     const [r, c] = key.split(',').map(Number)
     let neighbors = 0
@@ -102,7 +102,7 @@ export function generateMineLayout(): MineTile[][] {
   }
 
   // Wall pass: BLACK adjacent (cardinal) to FLOOR becomes WALL
-  const wallTiles: { r: number; c: number }[] = []
+  const wallTiles: Array<{ r: number; c: number }> = []
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
       if (grid[r][c] !== MineTile.BLACK) continue
@@ -119,8 +119,8 @@ export function generateMineLayout(): MineTile[][] {
   for (const { r, c } of wallTiles) grid[r][c] = MineTile.WALL
 
   // Diagonal walls for thicker border
-  const diagDirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-  const diagWalls: { r: number; c: number }[] = []
+  const diagDirs: Array<Array<number>> = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+  const diagWalls: Array<{ r: number; c: number }> = []
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
       if (grid[r][c] !== MineTile.BLACK) continue
@@ -137,7 +137,7 @@ export function generateMineLayout(): MineTile[][] {
   for (const { r, c } of diagWalls) grid[r][c] = MineTile.WALL
 
   // Torch placement
-  const eligibleTorchTiles: { r: number; c: number }[] = []
+  const eligibleTorchTiles: Array<{ r: number; c: number }> = []
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
       if (grid[r][c] !== MineTile.WALL) continue
@@ -152,7 +152,7 @@ export function generateMineLayout(): MineTile[][] {
     }
   }
 
-  const torchPositions: { r: number; c: number }[] = []
+  const torchPositions: Array<{ r: number; c: number }> = []
   const torchCount = 2 + Math.floor(Math.random() * 3)
   // Shuffle
   for (let i = eligibleTorchTiles.length - 1; i > 0; i--) {
@@ -173,7 +173,7 @@ export function generateMineLayout(): MineTile[][] {
   return grid
 }
 
-export function findPlayerStart(grid: MineTile[][]): { row: number; col: number } {
+export function findPlayerStart(grid: Array<Array<MineTile>>): { row: number; col: number } {
   const centerRow = Math.floor(MAP_HEIGHT / 2)
   const centerCol = Math.floor(MAP_WIDTH / 2)
 
@@ -197,11 +197,11 @@ export function findPlayerStart(grid: MineTile[][]): { row: number; col: number 
 
 export interface ExplosionResult {
   /** Tiles converted to FLOOR */
-  converted: { r: number; c: number }[]
+  converted: Array<{ r: number; c: number }>
   /** New wall tiles created around the blast */
-  newWalls: { r: number; c: number }[]
+  newWalls: Array<{ r: number; c: number }>
   /** Nugget positions spawned */
-  newNuggets: { r: number; c: number }[]
+  newNuggets: Array<{ r: number; c: number }>
 }
 
 /**
@@ -209,9 +209,9 @@ export interface ExplosionResult {
  * regenerate walls around new floor, spawn nuggets.
  * Mutates grid in place. Returns what changed so the view can update visuals.
  */
-export function explode(grid: MineTile[][], row: number, col: number): ExplosionResult {
+export function explode(grid: Array<Array<MineTile>>, row: number, col: number): ExplosionResult {
   const radius = BOMB_RADIUS_MIN + Math.random() * (BOMB_RADIUS_MAX - BOMB_RADIUS_MIN)
-  const converted: { r: number; c: number }[] = []
+  const converted: Array<{ r: number; c: number }> = []
 
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
@@ -231,7 +231,7 @@ export function explode(grid: MineTile[][], row: number, col: number): Explosion
   }
 
   // Regenerate walls: BLACK adjacent to FLOOR becomes WALL
-  const newWalls: { r: number; c: number }[] = []
+  const newWalls: Array<{ r: number; c: number }> = []
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
       if (grid[r][c] !== MineTile.BLACK) continue
@@ -248,7 +248,7 @@ export function explode(grid: MineTile[][], row: number, col: number): Explosion
   for (const { r, c } of newWalls) grid[r][c] = MineTile.WALL
 
   // Spawn nuggets
-  const newNuggets: { r: number; c: number }[] = []
+  const newNuggets: Array<{ r: number; c: number }> = []
   for (const { r, c } of converted) {
     if (Math.random() < GOLD_SPAWN_CHANCE) {
       newNuggets.push({ r, c })
@@ -261,7 +261,7 @@ export function explode(grid: MineTile[][], row: number, col: number): Explosion
 // ── Movement validation ──────────────────────────────────────────────
 
 /** Check if the player can move to (row, col). */
-export function canMoveTo(grid: MineTile[][], row: number, col: number): boolean {
+export function canMoveTo(grid: Array<Array<MineTile>>, row: number, col: number): boolean {
   return (
     row >= 0 && row < MAP_HEIGHT &&
     col >= 0 && col < MAP_WIDTH &&

@@ -28,7 +28,7 @@ export class WorldView {
   private model: WorldModel
   private waterGraphics!: Phaser.GameObjects.Graphics
   private waterBaseColors: Map<string, number> = new Map()
-  private locationVisuals: LocationVisual[] = []
+  private locationVisuals: Array<LocationVisual> = []
 
   constructor(scene: Phaser.Scene, model: WorldModel) {
     this.scene = scene
@@ -45,7 +45,7 @@ export class WorldView {
   }
 
   /** Returns the location visuals so the controller can wire up input. */
-  getLocationVisuals(): LocationVisual[] {
+  getLocationVisuals(): Array<LocationVisual> {
     return this.locationVisuals
   }
 

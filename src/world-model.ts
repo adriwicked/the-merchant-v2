@@ -8,11 +8,11 @@ import { MAP_WIDTH, MAP_HEIGHT } from './config'
  */
 export interface WorldModel {
   /** Classified terrain type per cell */
-  terrain: Terrain[][]
+  terrain: Array<Array<Terrain>>
   /** Raw noise values (-1 to 1) after radial falloff, per cell */
-  noiseValues: number[][]
+  noiseValues: Array<Array<number>>
   /** Generated locations (cities and mines) */
-  locations: GameLocation[]
+  locations: Array<GameLocation>
   /** Set of "row,col" keys for cells that are animated water */
   waterCells: Set<string>
 }

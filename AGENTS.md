@@ -14,14 +14,18 @@ A 2D tile-based game built with **Phaser 3**, **TypeScript**, and **Vite**. Depl
 
 ```
 src/
-  config.ts        — Grid constants, color palette, shared helpers (tweakColor, desaturate, brightenColor, cellPosition)
-  index.ts         — Phaser config + GameScene (world map rendering, water animation, location hover/click, iris-out transition)
+  config.ts        — Grid constants, color palette, shared helpers (tweakColor, brightenColor, cellPosition)
+  index.ts         — Phaser config + GameScene controller (thin orchestrator: creates model, creates view, wires input)
   map.ts           — Terrain enum (9 types), noise generation, radial falloff, terrain classification
   locations.ts     — LocationType enum, GameLocation interface, placement logic with distance constraints
-  game-state.ts    — Persistent world state (WorldState, MineState), generated once and cached in module scope
-  mine-scene.ts    — MineScene class, MineTile enum, cavern generation, player movement, bombs, gold nuggets, torch lighting
+  world-model.ts   — Pure data world model singleton (terrain grid, noise values, locations, water cells)
+  world-view.ts    — World map rendering (terrain tiles, water animation, location visuals with hover/click)
+  mine-model.ts    — Pure data mine model (MineTile enum, cavern generation, explosion logic, movement validation, persistent MineState)
+  mine-view.ts     — Mine rendering (tile colors, torch lighting, player, bombs, nuggets, torch flicker animation)
+  mine-scene.ts    — MineScene controller (thin orchestrator: creates model, creates view, wires input/bombs/movement)
+  transitions.ts   — Shared iris transition module (irisIn, irisOut)
   inventory.ts     — Global inventory object (bombs, goldNuggets), persists across scenes
-  debug-panel.ts   — Debug UI panel (exists but NOT imported — hidden, kept for future use)
+  debug-panel.ts   — Debug UI panel (dead code — NOT imported, kept for future use)
 ```
 
 ## Grid System
@@ -40,17 +44,24 @@ Use `cellPosition(row, col)` from `config.ts` for all pixel coordinate calculati
 
 **Critical pattern**: Phaser's `scene.start()` destroys all game objects. Persistent data lives in plain TypeScript modules, NOT on scene instances.
 
-- `game-state.ts` — `getWorldState()` returns a singleton. World map, locations, water colors generated once. `getMineState(loc)` returns per-mine persistent state (grid, tile colors, nugget positions).
+- `world-model.ts` — `getWorldModel()` returns a singleton. Terrain grid, noise values, locations, water cells generated once.
+- `mine-model.ts` — `getMineState(loc)` returns per-mine persistent state (grid layout, nugget positions). Pure data — no colors.
 - `inventory.ts` — Global `{ bombs, goldNuggets }` object, survives scene transitions.
 - Visual Phaser objects (Graphics, Rectangles, Text) are recreated from cached state each time a scene starts.
 
 ## Key Conventions
 
 ### Color Manipulation
-All colors are `0xRRGGBB` numbers manipulated via bit shifting. Three helpers in `config.ts`:
+All colors are `0xRRGGBB` numbers manipulated via bit shifting. Two helpers in `config.ts`:
 - `tweakColor(color)` — slight random brightness/saturation variation per tile
-- `desaturate(color, amount)` — blend toward gray (0-1)
 - `brightenColor(color, factor, warmth)` — multiply brightness with optional warm tint
+
+### Array Notation
+Always use `Array<type>` instead of `type[]`. This applies to all types:
+- Simple: `Array<string>`, `Array<number>`, `Array<GameLocation>`
+- Nested: `Array<Array<MineTile>>` not `MineTile[][]`
+- Inline objects: `Array<{ r: number; c: number }>` not `{ r: number; c: number }[]`
+- Tuples stay as-is: `[number, number]`, but arrays of tuples use `Array<[number, number]>`
 
 ### Terrain Generation
 1. Generate raw noise grid with `simplex-noise` (fractal, 4 octaves)
@@ -92,4 +103,4 @@ Pushes to `main` trigger `.github/workflows/deploy.yml` which builds and deploys
 - **Phaser Rectangle positioning**: positioned by center, use even pixel sizes to avoid subpixel rendering
 - **Foam pass**: collect foam positions first, then apply — avoids cascading adjacency detection
 - **Iris-out**: must cover CELL_SEPARATION gaps (paint darkened cells with padding) and hide location visuals at start
-- **Mine state**: `MineState.grid` stores `number[][]` (MineTile enum values), not objects. Nugget positions are a `Set<string>` with `"row,col"` keys.
+- **Mine state**: `MineState.grid` stores `Array<Array<MineTile>>` (enum values), not objects. Nugget positions are a `Set<string>` with `"row,col"` keys.

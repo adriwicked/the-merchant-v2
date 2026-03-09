@@ -37,8 +37,8 @@ export const TERRAIN_LABELS: Record<Terrain, string> = {
 }
 
 export interface MapParams {
-  baseRanges: { max: number; terrain: Terrain }[]
-  shoreRanges: { max: number; terrain: Terrain }[]
+  baseRanges: Array<{ max: number; terrain: Terrain }>
+  shoreRanges: Array<{ max: number; terrain: Terrain }>
   scale: number
   octaves: number
   lacunarity: number
@@ -92,9 +92,9 @@ function getShoreTerrain(value: number, ranges: MapParams['shoreRanges']): Terra
  * Generates a grid of raw noise values (no falloff applied).
  * Call this once per seed. Reuse across threshold and falloff changes.
  */
-export function generateNoiseGrid(width: number, height: number, params: MapParams): number[][] {
+export function generateNoiseGrid(width: number, height: number, params: MapParams): Array<Array<number>> {
   const noise2D = createNoise2D()
-  const grid: number[][] = []
+  const grid: Array<Array<number>> = []
 
   for (let row = 0; row < height; row++) {
     grid[row] = []
@@ -122,14 +122,14 @@ export function generateNoiseGrid(width: number, height: number, params: MapPara
  * Applies radial falloff over a raw noise grid, returning a new grid.
  * No effect inside inner radius (1/3 of half-width), ramps up to edges.
  */
-export function applyRadialFalloff(rawGrid: number[][], falloff: number): number[][] {
+export function applyRadialFalloff(rawGrid: Array<Array<number>>, falloff: number): Array<Array<number>> {
   const height = rawGrid.length
   const width = rawGrid[0].length
   const cx = (width - 1) / 2
   const cy = (height - 1) / 2
   const innerRadius = 1 / 3
   const outerRadius = 1.41
-  const grid: number[][] = []
+  const grid: Array<Array<number>> = []
 
   for (let row = 0; row < height; row++) {
     grid[row] = []
@@ -157,10 +157,10 @@ export function applyRadialFalloff(rawGrid: number[][], falloff: number): number
  * Classifies a pre-computed noise grid into terrain types using the given thresholds.
  * This is fast — no noise computation, just threshold lookups.
  */
-export function classifyTerrain(noiseGrid: number[][], params: MapParams): Terrain[][] {
+export function classifyTerrain(noiseGrid: Array<Array<number>>, params: MapParams): Array<Array<Terrain>> {
   const height = noiseGrid.length
   const width = noiseGrid[0].length
-  const map: Terrain[][] = []
+  const map: Array<Array<Terrain>> = []
 
   // First pass: base terrain from noise values
   for (let row = 0; row < height; row++) {
@@ -194,7 +194,7 @@ export function classifyTerrain(noiseGrid: number[][], params: MapParams): Terra
 
   // Third pass: apply foam to water cells adjacent to shore (BEACH_SAND or SEA_SHORE)
   // Collect positions first to avoid cascading within the same pass
-  const foamCells: [number, number][] = []
+  const foamCells: Array<[number, number]> = []
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       if (!isWater(map[row][col])) continue
@@ -226,7 +226,7 @@ export function classifyTerrain(noiseGrid: number[][], params: MapParams): Terra
 /**
  * Convenience: generates a new noise grid and classifies it in one call.
  */
-export function generateMap(width: number, height: number, params: MapParams = DEFAULT_PARAMS): Terrain[][] {
+export function generateMap(width: number, height: number, params: MapParams = DEFAULT_PARAMS): Array<Array<Terrain>> {
   const noiseGrid = generateNoiseGrid(width, height, params)
   return classifyTerrain(noiseGrid, params)
 }

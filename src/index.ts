@@ -7,7 +7,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT, COLORS } from './config'
 import { irisOut } from './transitions'
 
 class GameScene extends Phaser.Scene {
-  private view!: WorldView
+  private worldView!: WorldView
 
   constructor() {
     super('GameScene')
@@ -16,17 +16,17 @@ class GameScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.BOARD.BACKGROUND)
 
-    const model = getWorldModel()
-    this.view = new WorldView(this, model)
-    this.view.create()
+    const worldModel = getWorldModel()
+    this.worldView = new WorldView(this, worldModel)
+    this.worldView.create()
 
     // Wire up input on location visuals
-    for (const visual of this.view.getLocationVisuals()) {
+    for (const visual of this.worldView.getLocationVisuals()) {
       visual.hitZone.on('pointerover', () => {
-        this.view.setLocationHover(visual)
+        this.worldView.setLocationHover(visual)
       })
       visual.hitZone.on('pointerout', () => {
-        this.view.setLocationNormal(visual)
+        this.worldView.setLocationNormal(visual)
       })
 
       if (visual.loc.type === LocationType.MINE) {
@@ -38,7 +38,7 @@ class GameScene extends Phaser.Scene {
   }
 
   private enterMine(loc: GameLocation) {
-    this.view.hideLocations()
+    this.worldView.hideLocations()
 
     irisOut(this, {
       originRow: loc.row,

@@ -23,7 +23,7 @@ interface IrisOptions {
  * and the maximum distance to any grid corner from that origin.
  */
 function computeDistances(originRow: number, originCol: number) {
-  const distances: number[][] = []
+  const distances: Array<Array<number>> = []
   for (let row = 0; row < MAP_HEIGHT; row++) {
     distances[row] = []
     for (let col = 0; col < MAP_WIDTH; col++) {

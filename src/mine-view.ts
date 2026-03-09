@@ -34,8 +34,8 @@ interface LitCell {
   baseColor: number
 }
 
-function findTorches(grid: MineTile[][]): { r: number; c: number }[] {
-  const torches: { r: number; c: number }[] = []
+function findTorches(grid: Array<Array<MineTile>>): Array<{ r: number; c: number }> {
+  const torches: Array<{ r: number; c: number }> = []
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
       if (grid[r][c] === MineTile.TORCH) torches.push({ r, c })
@@ -46,7 +46,7 @@ function findTorches(grid: MineTile[][]): { r: number; c: number }[] {
 
 function torchInfluence(
   r: number, c: number,
-  torches: { r: number; c: number }[],
+  torches: Array<{ r: number; c: number }>,
 ): { factor: number; warmth: number } {
   let maxFactor = 1.0
   let maxWarmth = 0
@@ -71,8 +71,8 @@ function torchInfluence(
 // ── Tile color computation ───────────────────────────────────────────
 
 /** Compute tweaked base colors for every tile, then apply torch lighting to floor tiles. */
-function computeTileColors(grid: MineTile[][]): number[][] {
-  const colors: number[][] = []
+function computeTileColors(grid: Array<Array<MineTile>>): Array<Array<number>> {
+  const colors: Array<Array<number>> = []
   for (let row = 0; row < MAP_HEIGHT; row++) {
     colors[row] = []
     for (let col = 0; col < MAP_WIDTH; col++) {
@@ -98,11 +98,11 @@ function computeTileColors(grid: MineTile[][]): number[][] {
 }
 
 /** Returns the list of FLOOR cells within range of at least one torch. */
-function computeTorchLitCells(grid: MineTile[][], tileColors: number[][]): LitCell[] {
+function computeTorchLitCells(grid: Array<Array<MineTile>>, tileColors: Array<Array<number>>): Array<LitCell> {
   const torches = findTorches(grid)
   if (torches.length === 0) return []
 
-  const litCells: LitCell[] = []
+  const litCells: Array<LitCell> = []
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
       if (grid[r][c] !== MineTile.FLOOR) continue
@@ -119,7 +119,7 @@ function computeTorchLitCells(grid: MineTile[][], tileColors: number[][]): LitCe
 }
 
 /** Recalculate torch lighting on all FLOOR tiles. Mutates tileColors in place. */
-function recalcTorchLighting(grid: MineTile[][], tileColors: number[][]): void {
+function recalcTorchLighting(grid: Array<Array<MineTile>>, tileColors: Array<Array<number>>): void {
   const torches = findTorches(grid)
 
   for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -142,8 +142,8 @@ function recalcTorchLighting(grid: MineTile[][], tileColors: number[][]): void {
  */
 export class MineView {
   private scene: Phaser.Scene
-  private tileColors: number[][] = []
-  private litCells: LitCell[] = []
+  private tileColors: Array<Array<number>> = []
+  private litCells: Array<LitCell> = []
   private tileGraphics!: Phaser.GameObjects.Graphics
   private torchGraphics!: Phaser.GameObjects.Graphics
   private playerRect!: Phaser.GameObjects.Rectangle
@@ -155,7 +155,7 @@ export class MineView {
   }
 
   /** Initial setup: compute colors from grid, draw board frame, create layers. */
-  create(grid: MineTile[][]): void {
+  create(grid: Array<Array<MineTile>>): void {
     // Compute tile colors (with torch lighting) from the grid
     this.tileColors = computeTileColors(grid)
     this.litCells = computeTorchLitCells(grid, this.tileColors)
@@ -213,9 +213,9 @@ export class MineView {
    * and new walls, recalculate torch lighting, and redraw everything.
    */
   onExplosion(
-    grid: MineTile[][],
-    converted: { r: number; c: number }[],
-    newWalls: { r: number; c: number }[],
+    grid: Array<Array<MineTile>>,
+    converted: Array<{ r: number; c: number }>,
+    newWalls: Array<{ r: number; c: number }>,
   ): void {
     // Update colors for tiles that changed
     for (const { r, c } of converted) {
