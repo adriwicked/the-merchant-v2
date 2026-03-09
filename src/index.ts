@@ -5,7 +5,7 @@ import { getWorldState } from './game-state'
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, CELL_SIZE, CELL_SEPARATION, BORDER_WIDTH,
   MAP_WIDTH, MAP_HEIGHT, GRID_PIXEL_WIDTH, GRID_PIXEL_HEIGHT,
-  OFFSET_X, OFFSET_Y, COLORS, tweakColor, desaturate, cellPosition,
+  OFFSET_X, OFFSET_Y, COLORS, tweakColor, cellPosition,
 } from './config'
 
 interface LocationVisual {
@@ -80,29 +80,26 @@ class GameScene extends Phaser.Scene {
     })
 
     // Locations layer
-    const DESAT_AMOUNT = 0.45
+    const INNER_SIZE = CELL_SIZE * 0.6
     this.locationVisuals = []
 
     for (const loc of world.locations) {
       const { x, y } = cellPosition(loc.row, loc.col)
       const baseColor = loc.type === LocationType.CITY ? COLORS.LOCATIONS.CITY : COLORS.LOCATIONS.MINE
-      const normalColor = desaturate(baseColor, DESAT_AMOUNT)
-      const hoverColor = baseColor
-      const innerSize = CELL_SIZE * 0.6
       const centerX = x + CELL_SIZE / 2
       const centerY = y + CELL_SIZE / 2
       const fullSize = CELL_SIZE + CELL_SEPARATION * 2
 
       // Border graphics for the separation strips
       const borderGfx = this.add.graphics()
-      borderGfx.fillStyle(normalColor, 1)
+      borderGfx.fillStyle(baseColor, 1)
       borderGfx.fillRect(x - CELL_SEPARATION, y - CELL_SEPARATION, fullSize, CELL_SEPARATION)
       borderGfx.fillRect(x - CELL_SEPARATION, y + CELL_SIZE, fullSize, CELL_SEPARATION)
       borderGfx.fillRect(x - CELL_SEPARATION, y, CELL_SEPARATION, CELL_SIZE)
       borderGfx.fillRect(x + CELL_SIZE, y, CELL_SEPARATION, CELL_SIZE)
 
       // Inner square
-      const innerRect = this.add.rectangle(centerX, centerY, innerSize, innerSize, normalColor)
+      const innerRect = this.add.rectangle(centerX, centerY, INNER_SIZE, INNER_SIZE, baseColor)
 
       // Invisible hit zone covering the full cell + border area
       const hitZone = this.add.zone(
@@ -116,10 +113,10 @@ class GameScene extends Phaser.Scene {
       this.locationVisuals.push(visual)
 
       hitZone.on('pointerover', () => {
-        this.setLocationHover(visual, hoverColor)
+        this.setLocationHover(visual, baseColor)
       })
       hitZone.on('pointerout', () => {
-        this.setLocationNormal(visual, normalColor, innerSize)
+        this.setLocationNormal(visual, baseColor, INNER_SIZE)
       })
 
       if (loc.type === LocationType.MINE) {

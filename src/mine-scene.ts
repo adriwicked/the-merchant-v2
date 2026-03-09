@@ -270,7 +270,7 @@ export class MineScene extends Phaser.Scene {
 
     // Torch flicker animation: re-tweak torch-lit floor cells every 2 seconds
     this.time.addEvent({
-      delay: 2000,
+      delay: 500,
       loop: true,
       callback: () => {
         this.drawTorchLitCells()

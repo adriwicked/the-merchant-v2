@@ -18,7 +18,7 @@ export const COLORS = {
   },
   LOCATIONS: {
     CITY: 0xdd3333,
-    MINE: 0xccaa44,
+    MINE: 0xc0b8b0,
   },
 }
 
