@@ -15,8 +15,8 @@ export enum Terrain {
 export const TERRAIN_COLORS: Record<Terrain, number> = {
   [Terrain.DEEP_WATER]: 0x256299,
   [Terrain.MEDIUM_WATER]: 0x2375b4,
-  [Terrain.FOAM]: 0x5aabee,
   [Terrain.SEA_SHORE]: 0x4699de,
+  [Terrain.FOAM]: 0x5aabee,
   [Terrain.BEACH_SAND]: 0xab976a,
   [Terrain.LOW_GRASS]: 0x457950,
   [Terrain.HIGH_GRASS]: 0x2d673e,
@@ -27,8 +27,8 @@ export const TERRAIN_COLORS: Record<Terrain, number> = {
 export const TERRAIN_LABELS: Record<Terrain, string> = {
   [Terrain.DEEP_WATER]: 'Deep Water',
   [Terrain.MEDIUM_WATER]: 'Medium Water',
-  [Terrain.FOAM]: 'Foam',
   [Terrain.SEA_SHORE]: 'Sea Shore',
+  [Terrain.FOAM]: 'Foam',
   [Terrain.BEACH_SAND]: 'Beach Sand',
   [Terrain.LOW_GRASS]: 'Low Grass',
   [Terrain.HIGH_GRASS]: 'High Grass',
