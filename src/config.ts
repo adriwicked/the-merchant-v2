@@ -13,8 +13,8 @@ export const OFFSET_Y = (CANVAS_HEIGHT - GRID_PIXEL_HEIGHT) / 2
 
 export const COLORS = {
   BOARD: {
-    BACKGROUND: 0x262626,
-    BORDER: 0x494f50,
+    BACKGROUND: 0x3c3c3c,
+    BORDER: 0x777777,
   },
   LOCATIONS: {
     CITY: 0xdd3333,

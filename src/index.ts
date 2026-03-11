@@ -1,5 +1,7 @@
 import Phaser from 'phaser'
 import { LocationType, GameLocation } from './locations'
+import { IntroScene } from './intro-scene'
+import { CityScene } from './city-scene'
 import { MineScene } from './mine-scene'
 import { getWorldModel } from './world-model'
 import { WorldView } from './world-view'
@@ -9,13 +11,15 @@ import { irisIn, irisOut } from './transitions'
 class GameScene extends Phaser.Scene {
   private worldView!: WorldView
   private fromMine: GameLocation | null = null
+  private fromCity: GameLocation | null = null
 
   constructor() {
     super('GameScene')
   }
 
-  init(data?: { fromMine?: GameLocation }) {
+  init(data?: { fromMine?: GameLocation; fromCity?: GameLocation }) {
     this.fromMine = data?.fromMine ?? null
+    this.fromCity = data?.fromCity ?? null
   }
 
   create() {
@@ -38,12 +42,18 @@ class GameScene extends Phaser.Scene {
         visual.hitZone.on('pointerdown', () => {
           this.enterMine(visual.loc)
         })
+      } else if (visual.loc.type === LocationType.CITY) {
+        visual.hitZone.on('pointerdown', () => {
+          this.enterCity(visual.loc)
+        })
       }
     }
 
     // Iris-in transition when returning from a mine
     if (this.fromMine) {
       irisIn(this, { originRow: this.fromMine.row, originCol: this.fromMine.col })
+    } else if (this.fromCity) {
+      irisIn(this, { originRow: this.fromCity.row, originCol: this.fromCity.col })
     }
   }
 
@@ -58,6 +68,18 @@ class GameScene extends Phaser.Scene {
       },
     })
   }
+
+  private enterCity(loc: GameLocation) {
+    this.worldView.hideLocations()
+
+    irisOut(this, {
+      originRow: loc.row,
+      originCol: loc.col,
+      onComplete: () => {
+        this.scene.start('CityScene', { location: loc })
+      },
+    })
+  }
 }
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -69,7 +91,7 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [GameScene, MineScene],
+  scene: [IntroScene, GameScene, MineScene, CityScene],
 }
 
 new Phaser.Game(config)
