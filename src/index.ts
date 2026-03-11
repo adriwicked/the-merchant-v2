@@ -12,14 +12,16 @@ class GameScene extends Phaser.Scene {
   private worldView!: WorldView
   private fromMine: GameLocation | null = null
   private fromCity: GameLocation | null = null
+  private fromIntro = false
 
   constructor() {
     super('GameScene')
   }
 
-  init(data?: { fromMine?: GameLocation; fromCity?: GameLocation }) {
+  init(data?: { fromMine?: GameLocation; fromCity?: GameLocation; fromIntro?: boolean }) {
     this.fromMine = data?.fromMine ?? null
     this.fromCity = data?.fromCity ?? null
+    this.fromIntro = data?.fromIntro ?? false
   }
 
   create() {
@@ -49,7 +51,7 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    // Iris-in transition when returning from a mine
+    // Iris-in transition when returning from a mine or city (skip when coming from intro)
     if (this.fromMine) {
       irisIn(this, { originRow: this.fromMine.row, originCol: this.fromMine.col })
     } else if (this.fromCity) {
